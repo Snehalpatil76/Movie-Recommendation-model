@@ -3,50 +3,78 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 
-# Load Data
-@st.cache_data
-def load_data():
-    df = pd.read_csv('movies.csv')
-    df['genres'] = df['genres'].fillna('')
-    return df
+# Page Config
+st.set_page_config(
+    page_title="🎬 Movie Recommender",
+    page_icon="🍿",
+    layout="wide",
+    initial_sidebar_state="auto"
+)
 
-movies = load_data()
+# Load the data
+movies = pd.read_csv('movies.csv')
+movies['genres'] = movies['genres'].fillna('')
 
-# Compute similarity matrix
-@st.cache_data
-def compute_similarity(data):
-    tfidf = TfidfVectorizer(stop_words='english')
-    tfidf_matrix = tfidf.fit_transform(data['genres'])
-    return linear_kernel(tfidf_matrix, tfidf_matrix)
+# TF-IDF Vectorization
+tfidf = TfidfVectorizer(stop_words='english')
+tfidf_matrix = tfidf.fit_transform(movies['genres'])
 
-cosine_sim = compute_similarity(movies)
+# Cosine Similarity
+cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
+
+# Reverse mapping
 indices = pd.Series(movies.index, index=movies['title']).drop_duplicates()
 
-# Recommendation function
-def get_recommendations(title, sim=cosine_sim, n=10):
-    try:
-        idx = indices[title]
-        sim_scores = list(enumerate(sim[idx]))
-        sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)[1:n+1]
-        movie_indices = [i[0] for i in sim_scores]
-        return movies.iloc[movie_indices]
-    except KeyError:
-        return pd.DataFrame()
+# Recommendation Function
+def get_recommendations(title, cosine_sim=cosine_sim):
+    idx = indices[title]
+    sim_scores = list(enumerate(cosine_sim[idx]))
+    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+    sim_scores = sim_scores[1:11]
+    movie_indices = [i[0] for i in sim_scores]
+    return movies['title'].iloc[movie_indices]
 
-# UI
-st.title("🎬 Simple Movie Recommender")
+# ---------- UI Section ------------
 
-selected_movie = st.selectbox("Select a movie:", sorted(movies['title'].unique()))
+# Background style
+st.markdown("""
+    <style>
+    body {
+        background-color: #0E1117;
+        color: #FFFFFF;
+    }
+    .css-18e3th9 {
+        background-color: #0E1117;
+    }
+    .stSelectbox label {
+        color: #FAFAFA;
+        font-size: 20px;
+    }
+    .stButton>button {
+        background-color: #E50914;
+        color: white;
+        font-weight: bold;
+        border-radius: 10px;
+        padding: 0.5em 1em;
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #F40612;
+        transform: scale(1.02);
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-if st.button("Recommend"):
-    st.write(f"Recommendations based on: **{selected_movie}**")
-    results = get_recommendations(selected_movie)
+st.markdown("<h1 style='text-align: center; color: #E50914;'>🎬 Movie Recommender System</h1>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align: center; color: #FAFAFA;'>Get Top 10 Recommendations Based on Genre Similarity 🍿</h4>", unsafe_allow_html=True)
+st.write("")
 
-    if not results.empty:
-        for _, row in results.iterrows():
-            st.image("https://via.placeholder.com/200x300.png?text=Poster", width=150)
-            st.write(f"**{row['title']}**")
-            st.caption(f"Genres: {row['genres']}")
-            st.markdown("---")
-    else:
-        st.warning("No recommendations found.")
+col1, col2, col3 = st.columns([1, 3, 1])
+with col2:
+    movie_name = st.selectbox("Choose a movie to get recommendations:", sorted(movies['title'].unique()))
+
+    if st.button("🎯 Recommend Movies"):
+        recommendations = get_recommendations(movie_name)
+        st.success("Here are your top 10 similar movies:")
+        for i, rec in enumerate(recommendations, 1):
+            st.markdown(f"**{i}. {rec}**")
