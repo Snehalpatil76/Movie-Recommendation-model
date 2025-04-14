@@ -7,16 +7,22 @@ def get_recommendations(movie_name):
     return ["Inception", "Interstellar", "The Dark Knight", "Tenet", "Dunkirk"]
 
 def fetch_poster_url(movie_title):
-    api_key = "YOUR_TMDB_API_KEY"  # Replace with your actual TMDB API key
+    api_key = "YOUR_ACTUAL_TMDB_API_KEY"  # Replace this with your key
     query = movie_title.replace(" ", "%20")
     url = f"https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={query}"
-    response = requests.get(url)
-    data = response.json()
-    if data['results']:
-        poster_path = data['results'][0].get('poster_path')
-        if poster_path:
-            return f"https://image.tmdb.org/t/p/w500{poster_path}"
+    
+    try:
+        response = requests.get(url)
+        data = response.json()
+        if 'results' in data and data['results']:
+            poster_path = data['results'][0].get('poster_path')
+            if poster_path:
+                return f"https://image.tmdb.org/t/p/w500{poster_path}"
+    except Exception as e:
+        print("API error:", e)
+        
     return "https://via.placeholder.com/300x450?text=No+Image"
+
 
 # Streamlit UI
 st.set_page_config(layout="wide", page_title="Movie Recs")
