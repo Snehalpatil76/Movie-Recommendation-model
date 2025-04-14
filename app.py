@@ -1,68 +1,101 @@
 import streamlit as st
-import requests
+import pandas as pd
+from fuzzywuzzy import process
 
-# Dummy recommendation function for example
-def get_recommendations(movie_name):
-    # Placeholder logic - you should use your actual model here
-    return ["Inception", "Interstellar", "The Dark Knight", "Tenet", "Dunkirk"]
+# Load the movie dataset
+movies_df = pd.read_csv('movies_metadata.csv')  # Make sure this is the correct dataset
 
-def fetch_poster_url(movie_title):
-    api_key = "YOUR_ACTUAL_TMDB_API_KEY"  # Replace this with your key
-    query = movie_title.replace(" ", "%20")
-    url = f"https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={query}"
-    
-    try:
-        response = requests.get(url)
-        data = response.json()
-        if 'results' in data and data['results']:
-            poster_path = data['results'][0].get('poster_path')
-            if poster_path:
-                return f"https://image.tmdb.org/t/p/w500{poster_path}"
-    except Exception as e:
-        print("API error:", e)
-        
-    return "https://via.placeholder.com/300x450?text=No+Image"
+# Extract the list of movie titles
+movie_titles = movies_df['title'].tolist()
 
+# Function to suggest movie names based on user input
+def get_movie_suggestions(user_input, movie_titles):
+    user_input = user_input.lower()  # Convert to lowercase
+    suggestions = process.extract(user_input, movie_titles, limit=5)  # Get top 5 matches
+    return [suggestion[0] for suggestion in suggestions]
 
 # Streamlit UI
-st.set_page_config(layout="wide", page_title="Movie Recs")
+st.set_page_config(page_title="Movie Recommendation System", page_icon="🎬", layout="wide")
 st.markdown("""
     <style>
-    body {
-        background-color: #0b0c10;
-        color: white;
-    }
-    .block-container {
-        padding: 2rem 2rem;
-    }
+        .header {
+            text-align: center;
+            color: white;
+            font-size: 3rem;
+            font-family: 'Arial', sans-serif;
+        }
+        .title {
+            color: #00BFFF;
+            font-size: 2.5rem;
+        }
+        .description {
+            color: #A9A9A9;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+        .movie-suggestions {
+            display: flex;
+            overflow-x: scroll;
+            gap: 10px;
+            padding: 10px 0;
+        }
+        .movie-card {
+            background-color: #1c1c1c;
+            border-radius: 10px;
+            padding: 20px;
+            color: white;
+            width: 150px;
+            text-align: center;
+        }
+        .movie-card img {
+            width: 100%;
+            border-radius: 10px;
+        }
+        .btn {
+            background-color: #00BFFF;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #1e90ff;
+        }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='color:#ffffff;'>🍿 Movie Recommendations</h1>", unsafe_allow_html=True)
+# Header Section
+st.markdown("<h1 class='header'>🎬 Movie Recommendation System</h1>", unsafe_allow_html=True)
+st.markdown("<p class='description'>Start typing a movie name below to get recommendations!</p>", unsafe_allow_html=True)
 
-movie_name = st.text_input("", placeholder="Search your favorite movie...", label_visibility="collapsed")
+# User input for movie search
+user_input = st.text_input("Movie Name", placeholder="Enter a movie title...")
 
-if movie_name:
-    recommended_movies = get_recommendations(movie_name)
+if user_input:
+    # Get movie suggestions
+    suggestions = get_movie_suggestions(user_input, movie_titles)
+    st.markdown("<p class='title'>Did you mean one of these movies?</p>", unsafe_allow_html=True)
 
-    st.markdown("<h3 style='color:#ff4c4c;'>🎯 Recommended for You</h3>", unsafe_allow_html=True)
-    cols = st.columns(len(recommended_movies))
-    for i, movie in enumerate(recommended_movies):
-        with cols[i]:
-            poster = fetch_poster_url(movie)
-            st.image(poster, caption=movie, use_container_width=True)
+    # Display movie suggestions in a carousel-like format
+    st.markdown('<div class="movie-suggestions">', unsafe_allow_html=True)
+    for movie in suggestions:
+        # Create a movie card for each suggestion
+        st.markdown(f"""
+            <div class="movie-card">
+                <img src="https://via.placeholder.com/150x200?text={movie}" alt="{movie}" />
+                <p>{movie}</p>
+            </div>
+        """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# Placeholder carousels
-st.markdown("""
-    <h2 style='color:#ffc107;'>🌟 More to Explore</h2>
-    <h4 style='color:#ffffff;'>Top Rated ↩️</h4>
-""", unsafe_allow_html=True)
+    # Movie selection dropdown
+    selected_movie = st.selectbox("Select a movie from the suggestions:", suggestions)
 
-top_rated = ["The Shawshank Redemption", "The Godfather", "The Dark Knight", "Forrest Gump", "Pulp Fiction"]
-cols = st.columns(len(top_rated))
-for i, movie in enumerate(top_rated):
-    with cols[i]:
-        poster = fetch_poster_url(movie)
-        st.image(poster, caption=movie, use_container_width=True)
+    if selected_movie:
+        st.write(f"You selected: {selected_movie}")
+        # Here, you'd normally call your recommendation function based on selected_movie
+        # For now, let's just show a placeholder
+        st.write("Fetching recommendations based on this movie...")
 
-# You can add a 'Trending Now' or 'Popular on Streamlit' carousel similarly!
+else:
+    st.write("Start typing a movie name to get suggestions.")
